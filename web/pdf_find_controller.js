@@ -338,6 +338,53 @@ class PDFFindController {
   }
 
   _calculatePhraseMatch(query, pageIndex, pageContent, entireWord) {
+    let matches = [];
+    let matchLength = [];
+    let matchIdx = 0;
+    let endIdx = 0;
+    let queryArray = query.match(/\S+/g);
+
+    while (true) {
+      let subquery = queryArray[0];
+      let subqueryLen = subquery.length;
+      matchIdx = pageContent.indexOf(subquery, endIdx);
+
+      if (matchIdx === -1) {
+        break;
+      }
+
+      endIdx = matchIdx + subqueryLen;
+
+      let isMatch = true;
+      for (let i = 1, len = queryArray.length; i < len; i++) {
+        subquery = queryArray[i];
+        subqueryLen = subquery.length;
+        let subMatchIdx = pageContent.indexOf(subquery, endIdx);
+        if (subMatchIdx === -1) { // no sequencial matching
+          isMatch = false;
+          break;
+        }
+        if (pageContent.substr(endIdx, subMatchIdx - endIdx).trim() !== '') {
+          isMatch = false;
+          break;
+        }
+        endIdx = subMatchIdx + subqueryLen;
+      }
+
+      if (pageContent.slice(endIdx, endIdx + 1).match(/[a-zA-Z0-9]/)) {
+        break;
+      }
+
+      if (isMatch) {
+        matches.push(matchIdx);
+        matchLength.push(endIdx - matchIdx);
+      }
+    }
+    this.pageMatches[pageIndex] = matches;
+    this.pageMatchesLength[pageIndex] = matchLength;
+  }
+
+  _calculatePhraseMatchOrig(query, pageIndex, pageContent, entireWord) {
     const matches = [];
     const queryLen = query.length;
 
@@ -453,7 +500,7 @@ class PDFFindController {
           const strBuf = [];
 
           for (let j = 0, jj = textItems.length; j < jj; j++) {
-            strBuf.push(textItems[j].str);
+            strBuf.push(textItems[j].str.replace(/ +/, ' '));
           }
 
           // Store the normalized page content (text items) as one string.
